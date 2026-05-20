@@ -127,3 +127,33 @@ with aba_lote:
                         "Classificação": "⭐" * estrelas,
                         "Sentimento": MAPA_ESTRELAS[estrelas],
                         "Confiança": f"{confianca:.2%}"
+                    })
+                except Exception as e:
+                    resultados_lote.append({
+                        "Frase": frase, "Classificação": "⚠️ Erro", "Sentimento": f"Erro: {e}", "Confiança": "0%"
+                    })
+                
+                barra_progresso.progress((i + 1) / len(frases_arquivo))
+                
+            status_texto.text("✅ Processamento concluído!")
+            
+            # DataFrame dos resultados
+            df_resultados = pd.DataFrame(resultados_lote)
+            st.markdown("### 📊 Dados Processados")
+            st.dataframe(df_resultados, use_container_width=True)
+            
+            # Download CSV
+            csv_data = df_resultados.to_csv(index=False, encoding="utf-8-sig")
+            st.download_button(label="📥 Baixar Resultados em CSV", data=csv_data, file_name="resultados_sentimento.csv", mime="text/csv")
+            
+            # ── GRÁFICO NATIVO DO STREAMLIT (Sem Matplotlib!) ─────────────────
+            st.markdown("---")
+            st.markdown("### 📈 Distribuição de Sentimentos")
+            
+            # Criando tabela para o gráfico de barras
+            df_grafico = pd.DataFrame({
+                "Quantidade de Frases": [contagem_estrelas[e] for e in range(1, 6)]
+            }, index=["1⭐ Muito Negativo", "2⭐ Negativo", "3⭐ Neutro", "4⭐ Positivo", "5⭐ Muito Positivo"])
+            
+            # Renderiza o gráfico de barras interativo
+            st.bar_chart(df_grafico)
