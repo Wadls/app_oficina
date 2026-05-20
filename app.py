@@ -1,8 +1,21 @@
 # -*- coding: utf-8 -*-
+import subprocess
+import sys
+
+# ── AUTO-INSTALADOR DE DEPENDÊNCIAS ──────────────────────────────────────────
+# Este bloco detecta se a IA está instalada no servidor. Se não estiver,
+# ele força a instalação automaticamente direto pelo código.
+try:
+    from transformers import pipeline
+    import torch
+except ModuleNotFoundError:
+    # Executa o pip install em segundo plano no servidor do Streamlit
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "transformers", "torch"])
+    from transformers import pipeline
+
 import streamlit as st
 import pandas as pd
 import re
-from transformers import pipeline
 
 # ── Configuração da Página do Streamlit ───────────────────────────────────────
 st.set_page_config(
@@ -85,75 +98,4 @@ with aba_individual:
                     st.markdown("---")
                     col1, col2, col3 = st.columns(3)
                     col1.metric(label="Classificação", value="⭐" * estrelas)
-                    col2.metric(label="Sentimento", value=categoria.split()[0] + " " + categoria.split()[1])
-                    col3.metric(label="Confiança do Modelo", value=f"{confianca:.2%}")
-                        
-                except Exception as e:
-                    st.error(f"Erro ao processar: {e}")
-        else:
-            st.warning("Por favor, digite algum texto.")
-
-# ── ABA 2: Análise em Lote ───────────────────────────────────────────────────
-with aba_lote:
-    st.header("Análise de Arquivos")
-    st.markdown("Faça o upload de um arquivo de texto (**`.txt`**) com uma opinião por linha.")
-    
-    arquivo_carregado = st.file_uploader("Escolha um arquivo .txt", type=["txt"])
-    
-    if arquivo_carregado is not None:
-        conteudo = arquivo_carregado.read().decode("utf-8")
-        linhas = conteudo.splitlines()
-        frases_arquivo = [limpar_frase(linha) for line in linhas if (linha := line.strip())]
-        
-        st.info(f"📋 O arquivo contém **{len(frases_arquivo)}** frase(s) prontas para processamento.")
-        
-        if st.button("Iniciar Processamento em Lote", type="primary"):
-            resultados_lote = []
-            contagem_estrelas = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-            
-            barra_progresso = st.progress(0)
-            status_texto = st.empty()
-            
-            for i, frase in enumerate(frases_arquivo):
-                status_texto.text(f"Processando {i+1} de {len(frases_arquivo)}...")
-                try:
-                    resultado = sentiment_analyzer(frase)[0]
-                    estrelas = extrair_estrelas(resultado["label"])
-                    confianca = resultado["score"]
-                    
-                    contagem_estrelas[estrelas] += 1
-                    resultados_lote.append({
-                        "Frase": frase,
-                        "Classificação": "⭐" * estrelas,
-                        "Sentimento": MAPA_ESTRELAS[estrelas],
-                        "Confiança": f"{confianca:.2%}"
-                    })
-                except Exception as e:
-                    resultados_lote.append({
-                        "Frase": frase, "Classificação": "⚠️ Erro", "Sentimento": f"Erro: {e}", "Confiança": "0%"
-                    })
-                
-                barra_progresso.progress((i + 1) / len(frases_arquivo))
-                
-            status_texto.text("✅ Processamento concluído!")
-            
-            # DataFrame dos resultados
-            df_resultados = pd.DataFrame(resultados_lote)
-            st.markdown("### 📊 Dados Processados")
-            st.dataframe(df_resultados, use_container_width=True)
-            
-            # Download CSV
-            csv_data = df_resultados.to_csv(index=False, encoding="utf-8-sig")
-            st.download_button(label="📥 Baixar Resultados em CSV", data=csv_data, file_name="resultados_sentimento.csv", mime="text/csv")
-            
-            # ── GRÁFICO NATIVO DO STREAMLIT (Sem Matplotlib!) ─────────────────
-            st.markdown("---")
-            st.markdown("### 📈 Distribuição de Sentimentos")
-            
-            # Criando tabela para o gráfico de barras
-            df_grafico = pd.DataFrame({
-                "Quantidade de Frases": [contagem_estrelas[e] for e in range(1, 6)]
-            }, index=["1⭐ Muito Negativo", "2⭐ Negativo", "3⭐ Neutro", "4⭐ Positivo", "5⭐ Muito Positivo"])
-            
-            # Renderiza o gráfico de barras interativo
-            st.bar_chart(df_grafico)
+                    col2.metric(label="Sentimento", value=categoria.split()[0] + " "
